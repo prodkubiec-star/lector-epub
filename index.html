@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Lector EPUB</title>
+<style>
+:root{--paper:#fbfbfa;--ink:#1d2327;--muted:#6b767c;--line:#dfe3e4;--accent:#1f6f78;--panel:#f1f3f3;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#14181b;--ink:#d6dadc;--muted:#8d989e;--line:#2a3236;--accent:#5fb4bd;--panel:#1c2226;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#14181b;--ink:#d6dadc;--muted:#8d989e;--line:#2a3236;--accent:#5fb4bd;--panel:#1c2226;color-scheme:dark}
+:root[data-theme="sepia"]{--paper:#efe6d2;--ink:#3b3226;--muted:#7d6f5a;--line:#d9ccb2;--accent:#8a4b2a;--panel:#e6dbc2;color-scheme:light}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:40px}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+header{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line)}
+header h1{flex:1;margin:0;font:600 15px/1.2 Georgia,serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+main{flex:1;position:relative;min-height:0}
+#viewer{position:absolute;inset:0 0 0 0;display:none}
+.has-book #viewer{display:block}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center}
+.has-book #empty{display:none}
+#empty h2{font:600 28px/1.15 Georgia,serif;margin:0}
+#empty p{margin:0;color:var(--muted);max-width:32ch}
+#empty button.main{background:var(--accent);color:var(--paper);border-color:var(--accent);font-weight:600;padding:12px 22px;font-size:17px}
+#msg{color:#b3261e;min-height:1.4em}
+footer{display:none;align-items:center;gap:10px;padding:6px 10px;border-top:1px solid var(--line)}
+.has-book footer{display:flex}
+.bar{flex:1;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent)}
+#pct{min-width:3.2em;text-align:right;color:var(--muted);font-size:14px}
+.nav{width:56px;font-size:22px;line-height:1}
+#toc,#set{position:absolute;z-index:5;background:var(--panel);border:1px solid var(--line);display:none}
+#toc{top:0;bottom:0;left:0;width:min(86%,340px);overflow:auto;padding:8px 0}
+#toc a{display:block;padding:10px 16px;color:var(--ink);text-decoration:none;font:15px/1.3 Georgia,serif;border-bottom:1px solid var(--line)}
+#toc a:hover{background:var(--line)}
+#set{top:8px;right:8px;border-radius:12px;padding:14px;width:min(92%,300px)}
+#set h3{margin:0 0 8px;font-size:14px;font-weight:600;color:var(--muted)}
+#set .row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+#set .row:last-child{margin-bottom:0}
+#set .row button{flex:1}
+#set select{width:100%;min-height:40px;font:inherit;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px}
+.open{display:block!important}
+</style>
+</head>
+<body>
+<header>
+  <button id="tocBtn" aria-label="Índice">☰</button>
+  <h1 id="title">Lector EPUB</h1>
+  <button id="setBtn" aria-label="Ajustes de lectura">Aa</button>
+  <button id="openBtn">Abrir</button>
+</header>
+<main>
+  <div id="empty">
+    <h2>Abre un libro EPUB</h2>
+    <p>El archivo se lee en tu dispositivo y no se sube a ningún sitio. Recordaré dónde lo dejaste.</p>
+    <button class="main" id="openMain">Elegir archivo</button>
+    <div id="msg" role="status"></div>
+  </div>
+  <div id="viewer"></div>
+  <nav id="toc" aria-label="Índice"></nav>
+  <div id="set">
+    <h3>Tamaño del texto</h3>
+    <div class="row"><button id="smaller">A−</button><button id="bigger">A+</button></div>
+    <h3>Tema</h3>
+    <div class="row">
+      <button data-t="" aria-pressed="false">Auto</button>
+      <button data-t="light" aria-pressed="false">Claro</button>
+      <button data-t="sepia" aria-pressed="false">Sepia</button>
+      <button data-t="dark" aria-pressed="false">Oscuro</button>
+    </div>
+    <h3>Voz del audiolibro</h3>
+    <div class="row"><select id="voice" aria-label="Voz"></select></div>
+    <h3>Velocidad de lectura: <span id="rateLbl"></span></h3>
+    <div class="row"><button id="slower">−</button><button id="faster">+</button></div>
+  </div>
+</main>
+<footer>
+  <button class="nav" id="prev" aria-label="Página anterior">‹</button>
+  <button class="nav" id="listen" aria-label="Escuchar el libro">▶</button>
+  <div class="bar"><i id="fill"></i></div>
+  <span id="pct">0%</span>
+  <button class="nav" id="next" aria-label="Página siguiente">›</button>
+</footer>
+<input type="file" id="file" accept=".epub,application/epub+zip" hidden>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+};
+const DB = {
+  open(){ return new Promise((res, rej) => { const r = indexedDB.open('lector-epub', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k){ const db = await this.open(); return new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
+  async set(k, v){ const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); }
+};
+let book, rendition, key, size = +(LS.get('size') || 100), theme = LS.get('theme') || '';
+
+function applyTheme(){
+  const root = document.documentElement;
+  if (theme) root.dataset.theme = theme; else delete root.dataset.theme;
+  document.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === theme)));
+  if (rendition){
+    const cs = getComputedStyle(root);
+    rendition.themes.override('color', cs.getPropertyValue('--ink').trim());
+    rendition.themes.override('background', cs.getPropertyValue('--paper').trim());
+    rendition.themes.override('font-family', 'Georgia, "Times New Roman", serif');
+    rendition.themes.override('line-height', '1.6');
+    rendition.themes.fontSize(size + '%');
+  }
+}
+applyTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if(!theme) applyTheme(); });
+
+function buildToc(items, depth, host){
+  items.forEach(it => {
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = (it.label || '').trim();
+    a.style.paddingLeft = (16 + depth * 16) + 'px';
+    a.onclick = e => { e.preventDefault(); rendition.display(it.href); $('#toc').classList.remove('open'); };
+    host.appendChild(a);
+    if (it.subitems && it.subitems.length) buildToc(it.subitems, depth + 1, host);
+  });
+}
+
+async function openFile(f, restored){
+  stopListening();
+  $('#msg').textContent = '';
+  try {
+    const buf = await f.arrayBuffer();
+    if (!restored) DB.set('book', { name: f.name, buf: buf.slice(0) }).catch(() => {});
+    if (book) { try { book.destroy(); } catch(e){} }
+    $('#viewer').innerHTML = '';
+    $('#toc').innerHTML = '';
+    document.body.classList.add('has-book');
+    key = 'pos:' + f.name + ':' + f.size;
+    book = ePub(buf);
+    rendition = book.renderTo('viewer', { width:'100%', height:'100%', flow:'paginated', spread:'none', snap:true });
+    applyTheme();
+
+    rendition.on('relocated', loc => {
+      if (loc && loc.start) { LS.set(key, loc.start.cfi); DB.set(key, loc.start.cfi).catch(() => {}); }
+      let p = loc.start.percentage || 0;
+      if (book.locations && book.locations.length()) {
+        try { p = book.locations.percentageFromCfi(loc.start.cfi); } catch(e){}
+      }
+      p = Math.max(0, Math.min(1, p || 0));
+      $('#fill').style.width = (p * 100) + '%';
+      $('#pct').textContent = Math.round(p * 100) + '%';
+    });
+    rendition.on('keyup', e => {
+      if (e.key === 'ArrowRight') rendition.next();
+      if (e.key === 'ArrowLeft') rendition.prev();
+    });
+
+    const saved = LS.get(key) || await DB.get(key).catch(() => null);
+    try { await rendition.display(saved || undefined); }
+    catch(e){ await rendition.display(); }
+
+    book.loaded.metadata.then(m => { $('#title').textContent = m.title || f.name; bookLang = (m.language || '').slice(0,2).toLowerCase(); loadVoices(); });
+    book.loaded.navigation.then(n => buildToc(n.toc, 0, $('#toc')));
+    book.ready.then(() => book.locations.generate(1200)).then(() => {
+      const loc = rendition.currentLocation();
+      if (loc && loc.start) rendition.emit('relocated', loc);
+    }).catch(() => {});
+  } catch (err) {
+    document.body.classList.remove('has-book');
+    console.error(err);
+    $('#msg').textContent = 'No se pudo abrir este archivo. Detalle: ' + ((err && (err.message || err.name)) || String(err)) + (typeof ePub === 'undefined' ? ' (la librería de lectura no se cargó)' : '');
+  }
+}
+
+/* ---- Audiolibro (voz del dispositivo) ---- */
+let bookLang = '', rate = +(LS.get('rate') || 1), voices = [], listening = false, run = 0, wl = null;
+const synth = window.speechSynthesis;
+function loadVoices(){
+  if (!synth) return;
+  voices = synth.getVoices();
+  const sel = $('#voice');
+  const keep = LS.get('voice') || sel.value;
+  const lang = (bookLang || navigator.language || 'es').slice(0,2).toLowerCase();
+  const list = voices.filter(v => v.lang.toLowerCase().startsWith(lang));
+  sel.innerHTML = '';
+  (list.length ? list : voices).forEach(v => {
+    const o = document.createElement('option');
+    o.value = v.voiceURI; o.textContent = v.name + ' (' + v.lang + ')';
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; } else { $('#listen').hidden = true; }
+function updRate(){ $('#rateLbl').textContent = rate.toFixed(1) + '×'; }
+updRate();
+$('#voice').onchange = () => LS.set('voice', $('#voice').value);
+$('#slower').onclick = () => { rate = Math.max(0.6, Math.round((rate - 0.1) * 10) / 10); LS.set('rate', rate); updRate(); };
+$('#faster').onclick = () => { rate = Math.min(2, Math.round((rate + 0.1) * 10) / 10); LS.set('rate', rate); updRate(); };
+
+function pageText(){
+  const loc = rendition.currentLocation();
+  if (!loc || !loc.start) return '';
+  const a = rendition.getRange(loc.start.cfi), b = rendition.getRange(loc.end.cfi);
+  if (!a) return '';
+  const r = a.startContainer.ownerDocument.createRange();
+  r.setStart(a.startContainer, a.startOffset);
+  if (b) r.setEnd(b.startContainer, b.startOffset); else r.setEndAfter(a.startContainer.ownerDocument.body.lastChild);
+  return r.toString().replace(/\s+/g, ' ').trim();
+}
+function chunks(t){
+  let parts = t.match(/[^.!?…]+[.!?…]*\s*/g) || [t];
+  parts = parts.flatMap(p => p.length > 250 ? (p.match(/.{1,250}(\s|$)/g) || [p]) : [p]);
+  const out = []; let cur = '';
+  parts.forEach(p => { if ((cur + p).length > 200 && cur) { out.push(cur); cur = p; } else cur += p; });
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+function speakPage(id){
+  if (!listening || id !== run) return;
+  const start = rendition.currentLocation();
+  const before = start && start.start ? start.start.cfi : '';
+  const finish = async () => {
+    if (!listening || id !== run) return;
+    await rendition.next();
+    await new Promise(r => setTimeout(r, 400));
+    const now = rendition.currentLocation();
+    if (!now || !now.start || now.start.cfi === before) { stopListening(); return; }
+    speakPage(id);
+  };
+  const cs = chunks(pageText());
+  if (!cs.length) { finish(); return; }
+  const voice = voices.find(v => v.voiceURI === $('#voice').value);
+  cs.forEach((c, i) => {
+    const u = new SpeechSynthesisUtterance(c);
+    if (voice) { u.voice = voice; u.lang = voice.lang; } else if (bookLang) u.lang = bookLang;
+    u.rate = rate;
+    u.onerror = ev => { if (ev.error !== 'canceled' && ev.error !== 'interrupted' && id === run) stopListening(); };
+    if (i === cs.length - 1) u.onend = () => finish();
+    synth.speak(u);
+  });
+}
+function stopListening(){
+  run++; listening = false;
+  if (synth) synth.cancel();
+  const b = $('#listen');
+  b.textContent = '▶'; b.setAttribute('aria-label', 'Escuchar el libro');
+  try { wl && wl.release(); } catch(e){}
+  wl = null;
+}
+$('#listen').onclick = async () => {
+  if (listening) { stopListening(); return; }
+  if (!rendition || !synth) return;
+  listening = true;
+  synth.cancel();
+  const b = $('#listen');
+  b.textContent = '■'; b.setAttribute('aria-label', 'Detener la lectura');
+  try { wl = await navigator.wakeLock.request('screen'); } catch(e){}
+  speakPage(++run);
+};
+
+(async () => {
+  try {
+    const s = await DB.get('book');
+    if (s && s.buf) openFile(new File([s.buf], s.name), true);
+  } catch(e){}
+})();
+
+const file = $('#file');
+$('#openBtn').onclick = $('#openMain').onclick = () => file.click();
+file.onchange = () => { if (file.files[0]) openFile(file.files[0]); file.value = ''; };
+$('#prev').onclick = () => { stopListening(); rendition && rendition.prev(); };
+$('#next').onclick = () => { stopListening(); rendition && rendition.next(); };
+document.addEventListener('keyup', e => {
+  if (!rendition) return;
+  if (e.key === 'ArrowRight') rendition.next();
+  if (e.key === 'ArrowLeft') rendition.prev();
+});
+$('#tocBtn').onclick = () => { $('#set').classList.remove('open'); $('#toc').classList.toggle('open'); };
+$('#setBtn').onclick = () => { $('#toc').classList.remove('open'); $('#set').classList.toggle('open'); };
+$('#smaller').onclick = () => { size = Math.max(70, size - 10); LS.set('size', size); applyTheme(); };
+$('#bigger').onclick = () => { size = Math.min(220, size + 10); LS.set('size', size); applyTheme(); };
+document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { theme = b.dataset.t; LS.set('theme', theme); applyTheme(); });
+</script>
+</body>
+</html>
